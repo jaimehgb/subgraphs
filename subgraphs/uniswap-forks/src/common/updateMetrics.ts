@@ -345,7 +345,7 @@ export function updateVolumeAndFees(
   protocol.cumulativeProtocolSideRevenueUSD =
     protocol.cumulativeProtocolSideRevenueUSD.plus(protocolFeeAmountUSD);
 
-  // Pool
+    // Pool
   pool.cumulativeTotalRevenueUSD =
     pool.cumulativeTotalRevenueUSD.plus(tradingFeeAmountUSD);
   pool.cumulativeSupplySideRevenueUSD =
