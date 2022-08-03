@@ -36,11 +36,11 @@ export class MMFinanceCronosConfigurations implements Configurations {
     return PROTOCOL_SLUG;
   }
   getFactoryAddress(): string {
-    return "0xd590cC180601AEcD6eeADD9B7f2B7611519544f4";
+    return "0xd590cc180601aecd6eeadd9b7f2b7611519544f4";
   }
   getFactoryContract(): Factory {
     return Factory.bind(
-      Address.fromString("0xd590cC180601AEcD6eeADD9B7f2B7611519544f4")
+      Address.fromString("0xd590cc180601aecd6eeadd9b7f2b7611519544f4")
     );
   }
   getTradeFee(): BigDecimal {
@@ -71,7 +71,7 @@ export class MMFinanceCronosConfigurations implements Configurations {
     return "0x5c7f8a570d578ed84e63fdfa7b1ee72deae1ae23"; // WCRO
   }
   getRewardToken(): string {
-    return "0x97749c9B61F878a880DfE312d2594AE07AEd7656"; // MMFToken
+    return "0x97749c9b61f878a880dfe312d2594ae07aed7656"; // MMFToken
   }
   getWhitelistTokens(): string[] {
     return [
