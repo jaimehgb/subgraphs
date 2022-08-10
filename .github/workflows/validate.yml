@@ -1,0 +1,22 @@
+on:
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+  subgraph-build:
+    runs-on: ubuntu-latest
+    steps:
+      - id: files
+        uses: Ana06/get-changed-files@v1.2
+        with:
+          format: 'json'
+      
+      - id: checkout
+        uses: actions/checkout@v3
+      
+      - id: validate-build
+        run: npm --prefix ./deployment/ install && npm --prefix ./deployment/ run validate
+        env:
+          CHANGED_FILES: "${{ steps.files.outputs.added_modified }}"
+          ABSOLUTE_PATH: ${{ github.workspace }}
