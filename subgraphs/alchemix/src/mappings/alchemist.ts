@@ -1,4 +1,4 @@
-import { Address, BigDecimal, BigInt } from "@graphprotocol/graph-ts";
+import { Address, BigDecimal, BigInt, ethereum } from "@graphprotocol/graph-ts";
 import {
   Alchemist,
   ActiveVaultUpdated,
@@ -28,13 +28,14 @@ import {
   BIGINT_ZERO,
   VaultFeeType,
   BIGINT_HUNDRED,
+  BIGDECIMAL_ONE,
 } from "../sdk/util/constants";
 import { YieldAggregator, Vault } from "../sdk/protocols/yield";
 import { TokenPricer } from "../sdk/protocols/config";
 
 class Pricer implements TokenPricer {
   getTokenPrice(token: Token): BigDecimal {
-    return BIGDECIMAL_ZERO;
+    return BIGDECIMAL_ONE;
   }
 }
 
@@ -47,16 +48,22 @@ export function handleActiveVaultUpdated(event: ActiveVaultUpdated): void {
       "0xb4e7cc74e004f95aee7565a97dbfdea9c1761b24".toLowerCase(),
     ].includes(event.params.adapter.toHexString())
   ) {
+    // todo see how we handle these
     return;
   }
 
-  protocol.loadVault(event.params.adapter.toHexString(), onCreateVault);
+  const vault = protocol.loadVault(
+    event.params.adapter.toHexString(),
+    onCreateVault
+  );
+  refreshVaultTVL(vault);
 }
 
 export function handleFundsFlushed(event: FundsFlushed): void {
   const protocol = YieldAggregator.load(protocolConfig, new Pricer(), event);
   const vault = getAlchemistCurrentVault(protocol, event.address)!;
   vault.addInputTokenBalance(event.params.amount);
+  refreshVaultTVL(vault);
 }
 
 export function handleFundsRecalled(event: FundsRecalled): void {
@@ -82,12 +89,15 @@ export function handleFundsHarvested(event: FundsHarvested): void {
   const feeAmountUSD = amountUSD
     .times(fee.feePercentage!)
     .div(BIGDECIMAL_HUNDRED);
+  const net = amountUSD.minus(feeAmountUSD);
 
   // alchemix sends funds harvested to transmuter contract, they don't stay in the vault
-  // this is why we don't need to update the vault balance, and update the protocol tvl directly.
+  // this is why we don't need to update the vault balance nor TVL; and update the protocol's tvl directly instead.
   // Also, we deduct the fee from the TVL because it goes to rewards, doesn't stay in the protocol.
-  protocol.addTotalValueLocked(amountUSD.minus(feeAmountUSD));
   vault.addProtocolSideRevenueUSD(feeAmountUSD);
+  vault.addSupplySideRevenueUSD(net);
+  protocol.addTotalValueLocked(net);
+  refreshVaultTVL(vault);
 }
 
 export function handleHarvestFeeUpdated(event: HarvestFeeUpdated): void {
@@ -123,20 +133,93 @@ export function handleTokensDeposited(event: TokensDeposited): void {
   );
 
   protocol.addTotalValueLocked(deposit.amountUSD);
+  refreshVaultTVL(vault);
 }
 
 export function handleTokensWithdrawn(event: TokensWithdrawn): void {
   const protocol = YieldAggregator.load(protocolConfig, new Pricer(), event);
   const vault = getAlchemistCurrentVault(protocol, event.address)!;
+
+  const amounts = getWithdrawAmounts(event, vault);
   const withdraw = vault.withdraw(
     event,
     event.params.account,
-    event.params.withdrawnAmount,
+    amounts.totalWithdrawn,
     false // do not update metrics automatically since deposits/withdrawals are buffered
   );
-
-  // todo reduce vault balance if buffer was not enough
+  vault.addInputTokenBalance(
+    amounts.withdrawnFromVault.times(BIGINT_MINUS_ONE)
+  );
   protocol.addTotalValueLocked(withdraw.amountUSD.times(BIGDECIMAL_MINUS_ONE));
+}
+
+class WithdrawAmounts {
+  withdrawnFromBuffer: BigInt;
+  withdrawnFromVault: BigInt;
+  totalWithdrawn: BigInt;
+}
+
+// When withdrawing from alchemix, it is possible for some funds to come directly from the underlying
+// vault and others to come from a buffer living in the alchemist contract. This function returns
+// the amounts of each by inspecting at the transaction logs, attempting to find an ERC20 Transfer
+// event from vault.inputToken having the alchemist contract as the sender.
+function getWithdrawAmounts(
+  event: TokensWithdrawn,
+  vault: Vault
+): WithdrawAmounts {
+  const alchemistAddress = event.address;
+  for (let i = 0; i < event.receipt!.logs.length; i++) {
+    const log = event.receipt!.logs[i];
+    if (!log) {
+      continue;
+    }
+    if (log.address.toHexString() != vault.vault.inputToken) {
+      continue;
+    }
+    const transfer = transferEventFromLog(log);
+    if (!transfer) {
+      continue;
+    }
+
+    if (transfer.from.equals(alchemistAddress)) {
+      // funds sent from alchemist to user, these were buffered
+      const buffered = transfer.amount;
+      const withdrawnFromVault = event.params.withdrawnAmount.minus(buffered);
+      return {
+        withdrawnFromBuffer: buffered,
+        withdrawnFromVault: withdrawnFromVault,
+        totalWithdrawn: event.params.withdrawnAmount,
+      };
+    }
+  }
+
+  return {
+    withdrawnFromBuffer: BIGINT_ZERO,
+    withdrawnFromVault: event.params.withdrawnAmount,
+    totalWithdrawn: event.params.withdrawnAmount,
+  };
+}
+
+class ERC20Transfer {
+  from: Address;
+  to: Address;
+  amount: BigInt;
+}
+
+function transferEventFromLog(log: ethereum.Log): ERC20Transfer | null {
+  const ERC20TransferTopic0 =
+    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+  if (log.topics[0].toHexString() != ERC20TransferTopic0) {
+    return null;
+  }
+  const from = Address.fromBytes(log.topics[1]);
+  const to = Address.fromBytes(log.topics[2]);
+  const amount = BigInt.fromByteArray(log.data);
+  return {
+    from,
+    to,
+    amount,
+  };
 }
 
 export function handleTokensLiquidated(event: TokensLiquidated): void {
@@ -147,6 +230,7 @@ export function handleTokensLiquidated(event: TokensLiquidated): void {
 
 export function handleTokensRepaid(event: TokensRepaid): void {
   const protocol = YieldAggregator.load(protocolConfig, new Pricer(), event);
+  // users can repay with both synthetic or native token. If repaid with native, we
   // if token is not the synthetic, then add to tvl (as a deposit?)
 }
 
@@ -176,4 +260,10 @@ function onCreateVault(wrapper: Vault, event: TokensDeposited): void {
   wrapper.setFee(VaultFeeType.PERFORMANCE_FEE, feePercentage);
 
   setAlchemistVault(event.address, Address.fromString(wrapper.vault.id));
+}
+
+function refreshVaultTVL(vault: Vault): void {
+  const vaultSC = YearnVaultAdapter.bind(Address.fromString(vault.vault.id));
+  const balance = vaultSC.totalValue();
+  vault.setInputTokenBalance(balance);
 }

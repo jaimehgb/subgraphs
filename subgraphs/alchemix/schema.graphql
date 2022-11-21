@@ -1,5 +1,5 @@
 # Subgraph Schema: Yield Aggregator
-# Version: 1.3.0
+# Version: 1.3.1
 # See https://github.com/messari/subgraphs/blob/master/docs/Schema.md for details
 
 enum Network {
@@ -210,6 +210,15 @@ type YieldAggregator implements Protocol @entity {
   " Number of cumulative unique users "
   cumulativeUniqueUsers: Int!
 
+  " Total number of transaction so far "
+  cumulativeTransactionCount: Int!
+
+  " Total deposits in the protocol so far "
+  cumulativeDepositCount: Int!
+
+  " Total withdrawals in the protocol so far "
+  cumulativeWithdrawCount: Int!
+
   " Total number of pools "
   totalPoolCount: Int!
 
@@ -225,6 +234,10 @@ type YieldAggregator implements Protocol @entity {
 
   " Daily financial metrics for this protocol "
   financialMetrics: [FinancialsDailySnapshot!]! @derivedFrom(field: "protocol")
+
+  lastUsageHourlySnaphsot: UsageMetricsHourlySnapshot
+  lastUsageDailySnaphsot: UsageMetricsDailySnapshot
+  lastFinancialsSnapshot: FinancialsDailySnapshot
 
   ##### Vaults #####
 
@@ -252,11 +265,20 @@ type UsageMetricsDailySnapshot @entity {
   " Total number of transactions occurred in a day. Transactions include all entities that implement the Event interface. "
   dailyTransactionCount: Int!
 
+  " Total number of transactions so far. Transactions include all entities that implement the Event interface. "
+  cumulativeTransactionCount: Int!
+
   " Total number of deposits in a day "
   dailyDepositCount: Int!
 
+  " Total number of deposits so far "
+  cumulativeDepositCount: Int!
+
   " Total number of withdrawals in a day "
   dailyWithdrawCount: Int!
+
+  " Total number of withdrawals so far "
+  cumulativeWithdrawCount: Int!
 
   " Total number of pools "
   totalPoolCount: Int!
@@ -266,6 +288,8 @@ type UsageMetricsDailySnapshot @entity {
 
   " Timestamp of this snapshot "
   timestamp: BigInt!
+
+  _previous: UsageMetricsDailySnapshot
 }
 
 type UsageMetricsHourlySnapshot @entity {
@@ -284,17 +308,28 @@ type UsageMetricsHourlySnapshot @entity {
   " Total number of transactions occurred in an hour. Transactions include all entities that implement the Event interface. "
   hourlyTransactionCount: Int!
 
+  " Total number of transactions so far. Transactions include all entities that implement the Event interface. "
+  cumulativeTransactionCount: Int!
+
   " Total number of deposits in an hour "
   hourlyDepositCount: Int!
 
+  " Total number of deposits so far "
+  cumulativeDepositCount: Int!
+
   " Total number of withdrawals in an hour "
   hourlyWithdrawCount: Int!
+
+  " Total number of withdrawals so far "
+  cumulativeWithdrawCount: Int!
 
   " Block number of this snapshot "
   blockNumber: BigInt!
 
   " Timestamp of this snapshot "
   timestamp: BigInt!
+
+  _previous: UsageMetricsHourlySnapshot
 }
 
 type FinancialsDailySnapshot @entity {
@@ -333,6 +368,8 @@ type FinancialsDailySnapshot @entity {
 
   " Timestamp of this snapshot "
   timestamp: BigInt!
+
+  _previous: FinancialsDailySnapshot
 }
 
 ###############################
@@ -416,6 +453,9 @@ type Vault @entity {
   " Vault hourly snapshots "
   hourlySnapshots: [VaultHourlySnapshot!]! @derivedFrom(field: "vault")
 
+  lastDailySnapshot: VaultDailySnapshot
+  lastHourlySnapshot: VaultHourlySnapshot
+
   ##### Events #####
 
   " All deposits made to this vault "
@@ -464,7 +504,7 @@ type VaultDailySnapshot @entity {
   inputTokenBalance: BigInt!
 
   " Total supply of output token "
-  outputTokenSupply: BigInt!
+  outputTokenSupply: BigInt
 
   " Price per share of output token in USD "
   outputTokenPriceUSD: BigDecimal
@@ -486,6 +526,9 @@ type VaultDailySnapshot @entity {
 
   " Timestamp of this snapshot "
   timestamp: BigInt!
+
+  # Necessary for std lib support
+  _previous: VaultDailySnapshot
 }
 
 type VaultHourlySnapshot @entity {
@@ -523,7 +566,7 @@ type VaultHourlySnapshot @entity {
   inputTokenBalance: BigInt!
 
   " Total supply of output token "
-  outputTokenSupply: BigInt!
+  outputTokenSupply: BigInt
 
   " Price per share of output token in USD "
   outputTokenPriceUSD: BigDecimal
@@ -545,6 +588,9 @@ type VaultHourlySnapshot @entity {
 
   " Timestamp of this snapshot "
   timestamp: BigInt!
+
+  # Necessary for std lib support
+  _previous: VaultHourlySnapshot
 }
 
 ##################################

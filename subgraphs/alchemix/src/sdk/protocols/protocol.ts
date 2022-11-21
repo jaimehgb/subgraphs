@@ -11,6 +11,9 @@ export interface Protocol {
 
   addUser(count: u8): void;
   addTotalValueLocked(amount: BigDecimal): void;
+  addSupplySideRevenueUSD(rev: BigDecimal): void;
+  addProtocolSideRevenueUSD(rev: BigDecimal): void;
+  addRevenueUSD(protocolSide: BigDecimal, supplySide: BigDecimal): void;
 
   storeAccount(address: Address): void;
 }

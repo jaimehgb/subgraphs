@@ -11,8 +11,11 @@ import { TokenPricer, ProtocolConfigurer } from "../config";
 import { Protocol } from "../protocol";
 import { Accounts } from "../../common/accounts";
 import { Vault } from "./vault";
+import { ProtocolSnapshot } from "./protocol_snapshots";
 
 export interface YieldAggregatorProtocol extends Protocol {
+  addDeposit(count: u8): void;
+  addWithdraw(count: u8): void;
   addVault(count: u8): void;
 }
 
@@ -23,6 +26,7 @@ export class YieldAggregator implements YieldAggregatorProtocol {
   protocol: YieldAggregatorSchema;
   event: ethereum.Event;
   pricer: TokenPricer;
+  snapshoter: ProtocolSnapshot;
 
   private constructor(
     protocol: YieldAggregatorSchema,
@@ -32,6 +36,7 @@ export class YieldAggregator implements YieldAggregatorProtocol {
     this.protocol = protocol;
     this.event = event;
     this.pricer = pricer;
+    this.snapshoter = new ProtocolSnapshot(protocol, event);
   }
 
   static load(
@@ -57,6 +62,9 @@ export class YieldAggregator implements YieldAggregatorProtocol {
     protocol.cumulativeProtocolSideRevenueUSD = constants.BIGDECIMAL_ZERO;
     protocol.cumulativeTotalRevenueUSD = constants.BIGDECIMAL_ZERO;
     protocol.cumulativeUniqueUsers = 0;
+    protocol.cumulativeTransactionCount = 0;
+    protocol.cumulativeDepositCount = 0;
+    protocol.cumulativeWithdrawCount = 0;
     protocol.totalPoolCount = 0;
 
     const proto = new YieldAggregator(protocol, pricer, event);
@@ -77,7 +85,7 @@ export class YieldAggregator implements YieldAggregatorProtocol {
   }
 
   private updateSnapshots(): void {
-    // todo
+    this.snapshoter.takeSnapshots();
   }
 
   getID(): string {
@@ -134,10 +142,34 @@ export class YieldAggregator implements YieldAggregatorProtocol {
     this.save();
   }
 
+  addTransaction(count: u8 = 1): void {
+    this.protocol.cumulativeTransactionCount += count;
+    this.save();
+  }
+
+  addDeposit(count: u8 = 1): void {
+    this.protocol.cumulativeDepositCount += count;
+    this.addTransaction();
+    this.save();
+  }
+
+  addWithdraw(count: u8 = 1): void {
+    this.protocol.cumulativeWithdrawCount += count;
+    this.addTransaction();
+    this.save();
+  }
+
   storeAccount(account: Address): void {
-    const exists = Accounts.storeAccount(account);
-    if (!exists) {
+    const activity = Accounts.storeAccount(account, this.event);
+    if (activity.isNew) {
       this.addUser();
+    }
+
+    if (activity.isFirstDailyActivity) {
+      this.snapshoter.trackUserDailyActivity(1);
+    }
+    if (activity.isFirstHourlyActivity) {
+      this.snapshoter.trackUserHourlyActivity(1);
     }
   }
 

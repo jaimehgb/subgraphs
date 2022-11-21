@@ -15,6 +15,7 @@ import { exponentToBigDecimal } from "../../util/numbers";
 import * as constants from "../../util/constants";
 import { Tokens } from "../../common/tokens";
 import { YieldAggregatorProtocol } from "./protocol";
+import { VaultSnapshot } from "./vault_snapshots";
 
 // Vault is a wrapper around out Vault entity. Managing Vault entities with this
 // is preferred since it will automatically update snapshots and aggregate values dependant
@@ -56,7 +57,7 @@ export class Vault {
   }
 
   private updateSnapshots(): void {
-    // todo
+    VaultSnapshot.takeSnapshots(this, this.protocol.getCurrentEvent());
   }
 
   initialize(
@@ -139,6 +140,7 @@ export class Vault {
       this.vault.cumulativeTotalRevenueUSD.plus(rev);
     this.vault.cumulativeSupplySideRevenueUSD =
       this.vault.cumulativeSupplySideRevenueUSD.plus(rev);
+    this.protocol.addSupplySideRevenueUSD(rev);
     this.save();
   }
 
@@ -147,6 +149,7 @@ export class Vault {
       this.vault.cumulativeTotalRevenueUSD.plus(rev);
     this.vault.cumulativeProtocolSideRevenueUSD =
       this.vault.cumulativeProtocolSideRevenueUSD.plus(rev);
+    this.protocol.addProtocolSideRevenueUSD(rev);
     this.save();
   }
 
@@ -211,6 +214,7 @@ export class Vault {
     updateMetrics: boolean = true
   ): Deposit {
     this.protocol.storeAccount(account);
+    this.protocol.addDeposit(1);
 
     const id = `${event.transaction.hash.toHexString()}-${event.logIndex}`;
     const deposit = new Deposit(id);
@@ -241,6 +245,7 @@ export class Vault {
     updateMetrics: boolean = true
   ): Withdraw {
     this.protocol.storeAccount(account);
+    this.protocol.addWithdraw(1);
 
     const id = `${event.transaction.hash.toHexString()}-${event.logIndex}`;
     const withdraw = new Withdraw(id);
