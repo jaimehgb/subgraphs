@@ -1,0 +1,154 @@
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Alchemist
+    network: mainnet
+    source:
+      address: "0xc21d353ff4ee73c572425697f4f5aad2109fe35b"
+      abi: Alchemist
+      startBlock: 11937232
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities: []
+      abis:
+        - name: Alchemist
+          file: ./abis/Alchemist.json
+        - name: YearnVaultAdapter
+          file: ./abis/YearnVaultAdapter.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: YearnVault
+          file: ./abis/YearnVault.json
+      eventHandlers:
+        - event: ActiveVaultUpdated(indexed address)
+          handler: handleActiveVaultUpdated
+        - event: FundsFlushed(uint256)
+          handler: handleFundsFlushed
+        - event: FundsHarvested(uint256,uint256)
+          handler: handleFundsHarvested
+        - event: FundsRecalled(indexed uint256,uint256,uint256)
+          handler: handleFundsRecalled
+        - event: HarvestFeeUpdated(uint256)
+          handler: handleHarvestFeeUpdated
+        - event: RewardsUpdated(address)
+          handler: handleRewardsUpdated
+        - event: TokensDeposited(indexed address,uint256)
+          handler: handleTokensDeposited
+        - event: TokensLiquidated(indexed address,uint256,uint256,uint256)
+          handler: handleTokensLiquidated
+        - event: TokensRepaid(indexed address,uint256,uint256)
+          handler: handleTokensRepaid
+        - event: TokensWithdrawn(indexed address,uint256,uint256,uint256)
+          handler: handleTokensWithdrawn
+        - event: TransmuterUpdated(address)
+          handler: handleTransmuterUpdated
+      file: ./src/mappings/alchemist.ts
+  - kind: ethereum
+    name: AlchemistEth
+    network: mainnet
+    source:
+      address: "0xf8317BD5F48B6fE608a52B48C856D3367540B73B"
+      abi: Alchemist
+      startBlock: 12729424
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities: []
+      abis:
+        - name: Alchemist
+          file: ./abis/Alchemist.json
+        - name: YearnVaultAdapter
+          file: ./abis/YearnVaultAdapter.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: YearnVault
+          file: ./abis/YearnVault.json
+      eventHandlers:
+        - event: ActiveVaultUpdated(indexed address)
+          handler: handleActiveVaultUpdated
+        - event: FundsFlushed(uint256)
+          handler: handleFundsFlushed
+        - event: FundsHarvested(uint256,uint256)
+          handler: handleFundsHarvested
+        - event: FundsRecalled(indexed uint256,uint256,uint256)
+          handler: handleFundsRecalled
+        - event: HarvestFeeUpdated(uint256)
+          handler: handleHarvestFeeUpdated
+        - event: RewardsUpdated(address)
+          handler: handleRewardsUpdated
+        - event: TokensDeposited(indexed address,uint256)
+          handler: handleTokensDeposited
+        - event: TokensLiquidated(indexed address,uint256,uint256,uint256)
+          handler: handleTokensLiquidated
+        - event: TokensRepaid(indexed address,uint256,uint256)
+          handler: handleTokensRepaid
+        - event: TokensWithdrawn(indexed address,uint256,uint256,uint256)
+          handler: handleTokensWithdrawn
+        - event: TransmuterUpdated(address)
+          handler: handleTransmuterUpdated
+      file: ./src/mappings/alchemist.ts
+  # - kind: ethereum
+  #   name: Transmuter
+  #   network: mainnet
+  #   source:
+  #     address: "0xc21d353ff4ee73c572425697f4f5aad2109fe35b"
+  #     abi: Transmuter
+  #   mapping:
+  #     kind: ethereum/events
+  #     apiVersion: 0.0.6
+  #     language: wasm/assemblyscript
+  #     entities: []
+  #     abis:
+  #       - name: Transmuter
+  #         file: ./abis/Transmuter.json
+  #     eventHandlers:
+  #       - event: TransmuterActiveVaultUpdated(indexed address)
+  #         handler: handleTransmuterActiveVaultUpdated
+  #       - event: TransmuterEmergencyExitUpdated(bool)
+  #         handler: handleTransmuterEmergencyExitUpdated
+  #       - event: TransmuterFundsFlushed(uint256)
+  #         handler: handleTransmuterFundsFlushed
+  #       - event: TransmuterFundsHarvested(uint256,uint256)
+  #         handler: handleTransmuterFundsHarvested
+  #       - event: TransmuterFundsRecalled(indexed uint256,uint256,uint256)
+  #         handler: handleTransmuterFundsRecalled
+  #       - event: TransmuterHarvestFeeUpdated(uint256)
+  #         handler: handleTransmuterHarvestFeeUpdated
+  #       - event: TransmuterRewardsUpdated(address)
+  #         handler: handleTransmuterRewardsUpdated
+  #       - event: TransmuterTokensDeposited(indexed address,uint256)
+  #         handler: handleTransmuterTokensDeposited
+  #       - event: TransmuterTokensLiquidated(indexed address,uint256,uint256,uint256)
+  #         handler: handleTransmuterTokensLiquidated
+  #       - event: TransmuterTokensRepaid(indexed address,uint256,uint256)
+  #         handler: handleTransmuterTokensRepaid
+  #       - event: TransmuterTokensWithdrawn(indexed address,uint256,uint256,uint256)
+  #         handler: handleTransmuterTokensWithdrawn
+  #       - event: TransmuterTransmuterUpdated(address)
+  #         handler: handleTransmuterTransmuterUpdated
+  #     file: ./src/transmuter.ts
+
+templates:
+  - name: VaultAdapter
+    kind: ethereum/contract
+    network: mainnet
+    source:
+      abi: YearnVaultAdapter
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/vault.ts
+      entities: []
+      abis:
+        - name: YearnVaultAdapter
+          file: ./abis/YearnVaultAdapter.json
+        - name: ERC20
+          file: ./abis/ERC20.json
+        - name: YearnVault
+          file: ./abis/YearnVault.json
